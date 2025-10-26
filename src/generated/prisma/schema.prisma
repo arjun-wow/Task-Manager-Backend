@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  name      String?
+  password  String
+  avatarUrl String?   @default("https://i.pravatar.cc/150")
+  projects  Project[] @relation("ProjectTeam")
+  tasks     Task[]    @relation("Assignee")
+  comments  Comment[]
+}
+
+model Project {
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String?
+  tasks       Task[]
+  team        User[]  @relation("ProjectTeam")
+}
+
+// Enum for Task Status to match design
+enum TaskStatus {
+  TO_DO
+  IN_PROGRESS
+  DONE
+}
+
+// Enum for Task Priority
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Task {
+  id          Int          @id @default(autoincrement())
+  title       String
+  description String?
+  status      TaskStatus   @default(TO_DO)
+  priority    TaskPriority @default(MEDIUM)
+  dueDate     DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  project   Project @relation(fields: [projectId], references: [id])
+  projectId Int
+
+  assignee   User? @relation("Assignee", fields: [assigneeId], references: [id])
+  assigneeId Int?
+
+  subTasks SubTask[]
+  comments Comment[]
+}
+
+model SubTask {
+  id     Int     @id @default(autoincrement())
+  title  String
+  isDone Boolean @default(false)
+  task   Task    @relation(fields: [taskId], references: [id])
+  taskId Int
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  createdAt DateTime @default(now())
+
+  author   User @relation(fields: [authorId], references: [id])
+  authorId Int
+
+  task   Task @relation(fields: [taskId], references: [id])
+  taskId Int
+}
