@@ -66,3 +66,6 @@ export const ensureAuthenticated = (req: Request, res: Response, next: NextFunct
   }
   res.status(401).json({ message: 'Not authenticated via session' });
 };
+export interface AuthRequest extends Request {
+  user?: any;
+}
