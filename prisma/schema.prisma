@@ -17,7 +17,7 @@ model User {
   provider   String? // e.g., "google", or null for local
   providerId String? // Unique ID from the provider
 
-  avatarUrl String?   @default("https://api.dicebear.com/8.x/bottts-neutral/svg?seed=default")
+  avatarUrl String?   @default("[https://api.dicebear.com/8.x/bottts-neutral/svg?seed=default](https://api.dicebear.com/8.x/bottts-neutral/svg?seed=default)")
 
   // --- Password Reset Fields ---
   passwordResetToken   String?   @unique
@@ -99,28 +99,4 @@ model Comment {
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   taskId    Int
 }
-```
-
----
-
-### Step 1.2: Apply the Migration
-
-* **Goal:** Create a migration file based on the schema changes and apply it to your database.
-* **Action:** Run these commands one after the other in your `backend` terminal (`D:\backend`):
-
-    1.  **Create the migration file:**
-        ```bash
-        npx prisma migrate dev --name add-cascade-deletes --create-only
-        ```
-        *(Press `y` if it asks for confirmation about potential unique constraint warnings - these are expected).*
-
-    2.  **Apply the migration to your database:**
-        ```bash
-        npx prisma migrate deploy
-        ```
-
-    3.  **Regenerate Prisma Client:**
-        ```bash
-        npx prisma generate
-        
 
