@@ -3,16 +3,14 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../utils/prismaClient';
 import { User } from '@prisma/client';
 
-// ✅ Extend Express.Request safely via declaration merging
 declare global {
   namespace Express {
     interface Request {
-      user?: User; // no need for | null — Express handles undefined already
+      user?: User; 
     }
   }
 }
 
-// Middleware to protect routes using JWT
 export const protect = async (req: Request, res: Response, next: NextFunction) => {
   let token: string | undefined;
 
@@ -59,7 +57,6 @@ export const protect = async (req: Request, res: Response, next: NextFunction) =
   }
 };
 
-// ✅ Optional: Session-based auth for Passport users
 export const ensureAuthenticated = (req: Request, res: Response, next: NextFunction) => {
   if ((req as any).isAuthenticated && (req as any).isAuthenticated()) {
     return next();

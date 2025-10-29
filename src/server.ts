@@ -6,10 +6,8 @@ import path from 'path';
 import session from 'express-session';
 import passport from 'passport';
 
-// ✅ Load environment variables FIRST
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-// ✅ Then load passport (it depends on env vars)
 import './config/passport';
 
 // --- Import routes ---
@@ -87,8 +85,8 @@ app.use('/api/tasks', commentRoutes);
 // --- Server ---
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-  console.log(`🔗 Allowed Origins: ${allowedOrigins.join(', ')}`);
-  console.log(`📦 Loaded from: ${path.resolve(__dirname, '../.env')}`);
+  console.log(` Server running on port ${PORT}`);
+  console.log(` Environment: ${process.env.NODE_ENV}`);
+  console.log(` Allowed Origins: ${allowedOrigins.join(', ')}`);
+  console.log(` Loaded from: ${path.resolve(__dirname, '../.env')}`);
 });

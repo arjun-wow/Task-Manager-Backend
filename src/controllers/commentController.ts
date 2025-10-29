@@ -2,7 +2,6 @@ import { Response } from 'express';
 import { prisma } from '../utils/prismaClient';
 import { AuthRequest } from '../middleware/auth';
 
-// Get all comments for a specific task
 export const getCommentsForTask = async (req: AuthRequest, res: Response) => {
   const { taskId } = req.params;
   if (!taskId) {
@@ -12,9 +11,9 @@ export const getCommentsForTask = async (req: AuthRequest, res: Response) => {
   try {
     const comments = await prisma.comment.findMany({
       where: { taskId: Number(taskId) },
-      orderBy: { createdAt: 'asc' }, // Show oldest comments first
+      orderBy: { createdAt: 'asc' }, 
       include: {
-        author: { // Include author details
+        author: { 
           select: { id: true, name: true, avatarUrl: true }
         }
       }
@@ -26,7 +25,6 @@ export const getCommentsForTask = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// Add a new comment to a task
 export const addCommentToTask = async (req: AuthRequest, res: Response) => {
   const { taskId } = req.params;
   const { content } = req.body;
@@ -43,7 +41,7 @@ export const addCommentToTask = async (req: AuthRequest, res: Response) => {
         taskId: Number(taskId),
         authorId: authorId
       },
-      include: { // Include author details in the response
+      include: { 
         author: {
           select: { id: true, name: true, avatarUrl: true }
         }

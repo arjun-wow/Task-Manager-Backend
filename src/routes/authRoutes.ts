@@ -15,7 +15,6 @@ dotenv.config();
 
 const router = express.Router();
 
-// --- Debug route (optional, for env testing) ---
 router.get('/google/debug', (_req, res) => {
   res.json({
     FRONTEND_URL: process.env.FRONTEND_URL,
@@ -24,14 +23,12 @@ router.get('/google/debug', (_req, res) => {
   });
 });
 
-// --- Standard Auth ---
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.get('/me', protect, getMe);
 router.post('/forgot-password', forgotPassword);
 router.put('/reset-password/:token', resetPassword);
 
-// --- Google OAuth ---
 router.get('/google', (req, res, next) => {
   console.log('Initiating Google OAuth flow...');
   passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);

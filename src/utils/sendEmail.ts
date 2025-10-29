@@ -8,7 +8,6 @@
     }
 
     const sendEmail = async (options: EmailOptions) => {
-      // 1. Create transporter with Brevo SMTP
       const transporter = nodemailer.createTransport({
         host: process.env.EMAIL_HOST || 'smtp-relay.brevo.com',
         port: parseInt(process.env.EMAIL_PORT || '587', 10),
@@ -16,12 +15,11 @@
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASS,
         },
-        secure: true, // Correct for port 587 (STARTTLS)
-        debug: true,   // <-- ADD THIS LINE
-        logger: true   // <-- ADD THIS LINE
+        secure: true, 
+        debug: true,   
+        logger: true   
       });
 
-      // 2. Mail options
       const mailOptions = {
         from: process.env.EMAIL_FROM || `"WeManage" <${process.env.EMAIL_USER}>`,
         to: options.to,
@@ -30,16 +28,14 @@
         html: options.html,
       };
 
-      // 3. Send email
       try {
-        console.log('Attempting to send email...'); // Log before sending
+        console.log('Attempting to send email...'); 
         const info = await transporter.sendMail(mailOptions);
         console.log('✅ Email sent successfully:', info.messageId);
-        // console.log('Full email info:', info); // Optional: log full response
+        
         return info;
       } catch (error) {
         console.error('❌ Error sending email:', error);
-        // Log the specific error properties if available
         if (error instanceof Error) {
             console.error(`Error Code: ${(error as any).code}`);
             console.error(`Error Command: ${(error as any).command}`);
