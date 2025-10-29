@@ -16,7 +16,7 @@
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASS,
         },
-        secure: false, // Correct for port 587 (STARTTLS)
+        secure: true, // Correct for port 587 (STARTTLS)
         debug: true,   // <-- ADD THIS LINE
         logger: true   // <-- ADD THIS LINE
       });
