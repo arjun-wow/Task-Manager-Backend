@@ -30,24 +30,31 @@ if (!process.env.JWT_SECRET) {
 const app = express();
 
 // --- CORS ---
+
+
 const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  'https://wemanage.vercel.app',
-  'http://localhost:5173',
-  'http://127.0.0.1:5173'
-].filter(Boolean);
+  "https://wemanage.vercel.app",
+  "https://wemanage-backend.onrender.com",
+  "http://localhost:5173",
+];
+
+// Allow any Vercel preview deployment
+const dynamicVercelRegex = /^https:\/\/wemanage-[a-z0-9-]+\.vercel\.app$/;
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      dynamicVercelRegex.test(origin)
+    ) {
       callback(null, true);
     } else {
-      console.warn(`🚫 Blocked by CORS: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+      console.error("🚫 Blocked by CORS:", origin);
+      callback(new Error("Not allowed by CORS"));
     }
   },
   credentials: true,
-  optionsSuccessStatus: 200,
 }));
 
 // --- Body Parser ---
