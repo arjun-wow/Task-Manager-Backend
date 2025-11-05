@@ -1,8 +1,11 @@
 import { Request, Response } from 'express';
 import { prisma } from '../utils/prismaClient';
 
-// Get all projects for the logged-in user
-export const getProjects = async (req: Request, res: Response) => {
+/**
+ * Get all projects for the logged-in user
+ * NOTE: req.user is provided by the auth middleware; using `any` to avoid TS mismatches.
+ */
+export const getProjects = async (req: any, res: Response) => {
   if (!req.user) return res.status(401).json({ message: 'Not authorized' });
 
   try {
@@ -31,8 +34,10 @@ export const getProjects = async (req: Request, res: Response) => {
   }
 };
 
-// Create a new project
-export const createProject = async (req: Request, res: Response) => {
+/**
+ * Create a new project and connect the creator to its team
+ */
+export const createProject = async (req: any, res: Response) => {
   if (!req.user) return res.status(401).json({ message: 'Not authorized' });
 
   const user = req.user as any;
@@ -46,7 +51,7 @@ export const createProject = async (req: Request, res: Response) => {
     const project = await prisma.project.create({
       data: {
         name: name.trim(),
-        description,
+        description: description || null,
         team: {
           connect: { id: user.id },
         },
@@ -67,8 +72,10 @@ export const createProject = async (req: Request, res: Response) => {
   }
 };
 
-// Delete a project
-export const deleteProject = async (req: Request, res: Response) => {
+/**
+ * Delete a project (permission: team member OR admin)
+ */
+export const deleteProject = async (req: any, res: Response) => {
   if (!req.user) return res.status(401).json({ message: 'Not authorized' });
 
   const user = req.user as any;
@@ -92,7 +99,7 @@ export const deleteProject = async (req: Request, res: Response) => {
     }
 
     // Permission check
-    const isMember = project.team.some((member) => member.id === user.id);
+    const isMember = project.team.some((member: any) => member.id === user.id);
     if (!isMember && user.role !== 'ADMIN') {
       return res
         .status(403)
