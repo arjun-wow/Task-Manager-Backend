@@ -6,7 +6,7 @@ import { User } from '@prisma/client';
 declare global {
   namespace Express {
     interface Request {
-      user?: User; 
+      user?: User | undefined;
     }
   }
 }
@@ -64,28 +64,33 @@ export const ensureAuthenticated = (req: Request, res: Response, next: NextFunct
   res.status(401).json({ message: 'Not authenticated via session' });
 };
 
-// --- NEW FUNCTION INJECTED ---
+// --- MODIFIED FUNCTION SIGNATURE ---
 /**
  * Checks if the user is an ADMIN.
  * This middleware MUST run AFTER the 'protect' middleware.
  */
-export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
+// Define a local type that includes the optional 'role' property so TypeScript knows about it.
+export type UserWithRole = User & { role?: string | null };
+
+// Use the explicit AuthRequest interface (AuthRequest will reference UserWithRole below)
+export const isAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
     // 'protect' middleware should have already attached req.user
     if (!req.user) {
         return res.status(401).json({ message: 'Not authorized, no user found' });
     }
 
+    const user = req.user as UserWithRole;
+
     // Check the 'role' field (added from schema update)
-    if (req.user.role !== 'ADMIN') {
+    if (user.role !== 'ADMIN') { // This line is now valid
         return res.status(403).json({ message: 'Forbidden: Admin access required' });
     }
 
     // If user is an admin, proceed to the next handler
-    next();
+    return next();
 };
-// --- END OF INJECTED CODE ---
 
-
+// This interface is correct.
 export interface AuthRequest extends Request {
-  user?: any;
+  user?: UserWithRole | undefined;
 }
