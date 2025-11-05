@@ -6,7 +6,7 @@ import { User } from '@prisma/client';
 declare global {
   namespace Express {
     interface Request {
-      user?: User | undefined;
+      user?: User; // This types req.user for all standard 'Request' types
     }
   }
 }
@@ -29,6 +29,7 @@ export const protect = async (req: Request, res: Response, next: NextFunction) =
 
       const decoded = jwt.verify(token, jwtSecret) as { id: number };
 
+      // This query correctly fetches the full user, including the 'role'
       const user = await prisma.user.findUnique({
         where: { id: decoded.id },
       });
@@ -37,7 +38,7 @@ export const protect = async (req: Request, res: Response, next: NextFunction) =
         return res.status(401).json({ message: 'Not authorized, user not found' });
       }
 
-      req.user = user;
+      req.user = user; // Attaches the full User object
       next();
 
     } catch (error: any) {
@@ -58,39 +59,34 @@ export const protect = async (req: Request, res: Response, next: NextFunction) =
 };
 
 export const ensureAuthenticated = (req: Request, res: Response, next: NextFunction) => {
+  // This correctly uses Passport's 'isAuthenticated' method
   if ((req as any).isAuthenticated && (req as any).isAuthenticated()) {
     return next();
   }
   res.status(401).json({ message: 'Not authenticated via session' });
 };
 
-// --- MODIFIED FUNCTION SIGNATURE ---
 /**
  * Checks if the user is an ADMIN.
  * This middleware MUST run AFTER the 'protect' middleware.
  */
-// Define a local type that includes the optional 'role' property so TypeScript knows about it.
-export type UserWithRole = User & { role?: string | null };
-
-// Use the explicit AuthRequest interface (AuthRequest will reference UserWithRole below)
-export const isAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
-    // 'protect' middleware should have already attached req.user
+export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
+    // Relies on the 'declare global' block for req.user type
     if (!req.user) {
         return res.status(401).json({ message: 'Not authorized, no user found' });
     }
 
-    const user = req.user as UserWithRole;
-
-    // Check the 'role' field (added from schema update)
-    if (user.role !== 'ADMIN') { // This line is now valid
+    if (req.user.role !== 'ADMIN') {
         return res.status(403).json({ message: 'Forbidden: Admin access required' });
     }
 
-    // If user is an admin, proceed to the next handler
-    return next();
+    next();
 };
 
-// This interface is correct.
+// --- FIXED INTERFACE ---
+// This interface is for use in controllers/routes that need
+// to be explicit about the request object.
+// It now correctly types 'user' to match Passport (User | null) and Express (undefined).
 export interface AuthRequest extends Request {
-  user?: UserWithRole | undefined;
+  user?: User | null;
 }
