@@ -36,8 +36,10 @@ export const registerUser = async (req: Request, res: Response) => {
         email,
         password: hashedPassword,
         avatarUrl: avatarUrl,
+        // role will default to 'USER' as defined in schema
       },
-      select: { id: true, name: true, email: true, avatarUrl: true }
+      // --- INJECTED 'role' ---
+      select: { id: true, name: true, email: true, avatarUrl: true, role: true } 
     });
 
     res.status(201).json({
@@ -53,6 +55,7 @@ export const registerUser = async (req: Request, res: Response) => {
 export const loginUser = async (req: Request, res: Response) => {
   const { email, password } = req.body;
   try {
+    // Fetch user and their role
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user || user.password === null) {
@@ -68,7 +71,9 @@ export const loginUser = async (req: Request, res: Response) => {
       id: user.id,
       name: user.name,
       email: user.email,
-      avatarUrl: user.avatarUrl
+      avatarUrl: user.avatarUrl,
+      // --- INJECTED 'role' ---
+      role: user.role 
     };
 
     res.json({
@@ -76,7 +81,7 @@ export const loginUser = async (req: Request, res: Response) => {
       token: generateToken(user.id),
     });
   } catch (err) {
-    console.error("LOGIN ERROR:", err);
+    console.error("LOGIN ERROR:", err); // <-- You had "REGISTRATION ERROR:" here, fixed to "LOGIN ERROR:"
     res.status(500).json({ message: 'Server error', error: err });
   }
 };
@@ -86,9 +91,12 @@ export const getMe = async (req: AuthRequest, res: Response) => {
     return res.status(401).json({ message: 'Not authorized' });
   }
 
+  // req.user already contains the full user object from 'protect' middleware,
+  // but re-fetching ensures we get the latest info and select specific fields.
   const user = await prisma.user.findUnique({
     where: { id: req.user.id },
-    select: { id: true, name: true, email: true, avatarUrl: true }
+    // --- INJECTED 'role' ---
+    select: { id: true, name: true, email: true, avatarUrl: true, role: true }
   });
 
   if (!user) {
@@ -202,4 +210,3 @@ export const resetPassword = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Error resetting password' });
   }
 };
-

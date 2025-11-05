@@ -7,17 +7,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --- 1. ADDED ROLE ENUM ---
+enum Role {
+  USER
+  ADMIN
+}
+
 model User {
   id        Int       @id @default(autoincrement())
   email     String    @unique
   name      String?
   password  String? // Optional for OAuth
 
+  // --- 2. ADDED ROLE FIELD ---
+  role      Role      @default(USER)
+
   // --- OAuth Fields ---
   provider   String? // e.g., "google", or null for local
   providerId String? // Unique ID from the provider
 
-  avatarUrl String?   @default("[https://api.dicebear.com/8.x/bottts-neutral/svg?seed=default](https://api.dicebear.com/8.x/bottts-neutral/svg?seed=default)")
+  // --- 3. FIXED AVATAR URL SYNTAX ---
+  avatarUrl String?   @default("https://api.dicebear.com/8.x/bottts-neutral/svg?seed=default")
 
   // --- Password Reset Fields ---
   passwordResetToken   String?   @unique
@@ -99,4 +109,3 @@ model Comment {
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   taskId    Int
 }
-

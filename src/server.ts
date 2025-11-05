@@ -16,6 +16,8 @@ import projectRoutes from './routes/projectRoutes';
 import taskRoutes from './routes/taskRoutes';
 import userRoutes from './routes/userRoutes';
 import commentRoutes from './routes/commentRoutes';
+import reportRoutes from "./routes/reportRoutes";
+
 
 // --- Validate critical env vars ---
 if (!process.env.SESSION_SECRET) {
@@ -30,31 +32,26 @@ if (!process.env.JWT_SECRET) {
 const app = express();
 
 // --- CORS ---
-
-
 const allowedOrigins = [
-  "https://wemanage.vercel.app",
-  "https://wemanage-backend.onrender.com",
-  "http://localhost:5173",
-];
-
-// Allow any Vercel preview deployment
-const dynamicVercelRegex = /^https:\/\/wemanage-[a-z0-9-]+\.vercel\.app$/;
+  process.env.FRONTEND_URL,
+  'https://wemanage.vercel.app',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:5174', 'http://127.0.0.1:5174'
+  
+].filter(Boolean);
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (
-      !origin ||
-      allowedOrigins.includes(origin) ||
-      dynamicVercelRegex.test(origin)
-    ) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.error("🚫 Blocked by CORS:", origin);
-      callback(new Error("Not allowed by CORS"));
+      console.warn(`🚫 Blocked by CORS: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
+  optionsSuccessStatus: 200,
 }));
 
 // --- Body Parser ---
@@ -83,6 +80,8 @@ app.get('/', (_req, res) => res.send('✅ Task Manager Backend is running'));
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 // --- Routes ---
+app.use("/api/reports", reportRoutes);
+
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/users', userRoutes);

@@ -63,6 +63,29 @@ export const ensureAuthenticated = (req: Request, res: Response, next: NextFunct
   }
   res.status(401).json({ message: 'Not authenticated via session' });
 };
+
+// --- NEW FUNCTION INJECTED ---
+/**
+ * Checks if the user is an ADMIN.
+ * This middleware MUST run AFTER the 'protect' middleware.
+ */
+export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
+    // 'protect' middleware should have already attached req.user
+    if (!req.user) {
+        return res.status(401).json({ message: 'Not authorized, no user found' });
+    }
+
+    // Check the 'role' field (added from schema update)
+    if (req.user.role !== 'ADMIN') {
+        return res.status(403).json({ message: 'Forbidden: Admin access required' });
+    }
+
+    // If user is an admin, proceed to the next handler
+    next();
+};
+// --- END OF INJECTED CODE ---
+
+
 export interface AuthRequest extends Request {
   user?: any;
 }
