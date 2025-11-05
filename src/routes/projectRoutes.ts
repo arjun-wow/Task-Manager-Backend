@@ -1,17 +1,19 @@
 import express from 'express';
 import { getProjects, createProject, deleteProject } from '../controllers/projectController';
-import { protect, AuthRequest } from '../middleware/auth';
+import { protect } from '../middleware/auth';
 
 const router = express.Router();
 
+// Apply authentication middleware to all project routes
 router.use(protect);
 
-router.get('/', (req, res) => getProjects(req as AuthRequest, res));
+// Get all projects
+router.get('/', (req, res) => getProjects(req, res));
 
-router.post('/', (req, res) => createProject(req as AuthRequest, res));
+// Create a new project
+router.post('/', (req, res) => createProject(req, res));
 
-router.delete('/:id', (req, res) => deleteProject(req as AuthRequest, res));
-
+// Delete a project
+router.delete('/:id', (req, res) => deleteProject(req, res));
 
 export default router;
-
