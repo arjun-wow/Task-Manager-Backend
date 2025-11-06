@@ -1,14 +1,33 @@
-import express from 'express';
-import { getAllUsers, getTeamForUser, updateUserRole, deleteUser } from '../controllers/userController';
-import { protect, isAdmin } from '../middleware/auth';
+import { Router } from "express";
+import { PrismaClient } from "@prisma/client";
+import { protect } from "../middleware/auth";
 
-const router = express.Router();
+const prisma = new PrismaClient();
+const router = Router();
 
-router.use(protect);
+/**
+ * GET /api/users
+ * ✅ Any logged-in user can view all users and roles.
+ * ❌ Only admins can modify or delete.
+ */
+router.get("/", protect, async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        avatarUrl: true,
+      },
+      orderBy: { name: "asc" },
+    });
 
-router.get('/', isAdmin, getAllUsers);
-router.get('/team', getTeamForUser);
-router.put('/:id/role', isAdmin, updateUserRole);
-router.delete('/:id', isAdmin, deleteUser);
+    res.json(users);
+  } catch (error) {
+    console.error("Fetch users error:", error);
+    res.status(500).json({ message: "Failed to fetch users" });
+  }
+});
 
 export default router;
