@@ -1,74 +1,73 @@
 import { Request, Response } from 'express';
 import { prisma } from '../utils/prismaClient';
 
-// --- Get all users (admin-only in routes) ---
-export const getAllUsers = async (req: Request, res: Response) => {
+export const getAllUsers = async (_req: Request, res: Response) => {
   try {
     const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        avatarUrl: true,
-        role: true,
-      },
+      select: { id: true, name: true, email: true, role: true, avatarUrl: true },
       orderBy: { name: 'asc' },
     });
-
     res.json(users);
   } catch (err) {
     console.error('GET ALL USERS ERROR:', err);
-    res.status(500).json({ message: 'Server error', error: err });
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-// --- Update a user’s role (admin-only) ---
+export const getTeamForUser = async (req: any, res: Response) => {
+  if (!req.user) return res.status(401).json({ message: 'Not authorized' });
+
+  try {
+    const user = req.user as any;
+
+    const team = user.role === 'ADMIN'
+      ? await prisma.user.findMany({
+          select: { id: true, name: true, role: true, avatarUrl: true },
+          orderBy: { name: 'asc' },
+        })
+      : await prisma.user.findMany({
+          where: {
+            projects: { some: { id: { in: (await prisma.project.findMany({
+              where: { team: { some: { id: user.id } } },
+              select: { id: true },
+            })).map(p => p.id) } } },
+          },
+          select: { id: true, name: true, role: true, avatarUrl: true },
+        });
+
+    res.json(team);
+  } catch (err) {
+    console.error('GET TEAM ERROR:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 export const updateUserRole = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { role } = req.body; // expects { "role": "ADMIN" } or { "role": "USER" }
+  const { role } = req.body;
 
-  if (!role || !['ADMIN', 'USER'].includes(role)) {
-    return res.status(400).json({ message: 'Invalid role. Must be ADMIN or USER.' });
-  }
-
-  const user = req.user as any;
-  if (Number(id) === user?.id) {
-    return res.status(400).json({ message: 'Admin cannot change their own role.' });
-  }
+  if (!['ADMIN', 'USER'].includes(role)) return res.status(400).json({ message: 'Invalid role' });
 
   try {
-    const updatedUser = await prisma.user.update({
+    const updated = await prisma.user.update({
       where: { id: Number(id) },
       data: { role },
-      select: { id: true, name: true, email: true, avatarUrl: true, role: true },
+      select: { id: true, name: true, email: true, role: true },
     });
-
-    res.json(updatedUser);
+    res.json(updated);
   } catch (err) {
     console.error('UPDATE USER ROLE ERROR:', err);
-    res.status(500).json({ message: 'Error updating user role', error: err });
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-// --- Delete a user (admin-only) ---
 export const deleteUser = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const adminUser = req.user as any;
-
-  if (Number(id) === adminUser?.id) {
-    return res.status(400).json({ message: 'Admin cannot delete their own account.' });
-  }
-
   try {
     await prisma.user.delete({ where: { id: Number(id) } });
-    res.json({ message: 'User deleted successfully.' });
-  } catch (err: any) {
+    res.json({ message: 'User deleted successfully' });
+  } catch (err) {
     console.error('DELETE USER ERROR:', err);
-
-    if (err.code === 'P2025') {
-      return res.status(404).json({ message: 'User not found.' });
-    }
-
-    res.status(500).json({ message: 'Error deleting user', error: err });
+    res.status(500).json({ message: 'Server error' });
   }
 };

@@ -3,7 +3,6 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../utils/prismaClient';
 import { User } from '@prisma/client';
 
-// Extend Express globally
 declare global {
   namespace Express {
     interface Request {
@@ -12,7 +11,6 @@ declare global {
   }
 }
 
-// Protect routes via JWT
 export const protect = async (req: Request, res: Response, next: NextFunction) => {
   let token: string | undefined;
 
@@ -42,13 +40,11 @@ export const protect = async (req: Request, res: Response, next: NextFunction) =
   }
 };
 
-// Passport fallback
 export const ensureAuthenticated = (req: Request, res: Response, next: NextFunction) => {
   if ((req as any).isAuthenticated && (req as any).isAuthenticated()) return next();
   res.status(401).json({ message: 'Not authenticated via session' });
 };
 
-// Admin check
 export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
   if (!req.user) return res.status(401).json({ message: 'Not authorized, no user found' });
   if ((req.user as any).role !== 'ADMIN') return res.status(403).json({ message: 'Forbidden: Admin access required' });
