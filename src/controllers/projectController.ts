@@ -1,28 +1,18 @@
 import { Request, Response } from 'express';
 import { prisma } from '../utils/prismaClient';
 
-/**
- * Get all projects for the logged-in user
- * NOTE: req.user is provided by the auth middleware; using `any` to avoid TS mismatches.
- */
+// Get all projects (Admin → all, User → team only)
 export const getProjects = async (req: any, res: Response) => {
   if (!req.user) return res.status(401).json({ message: 'Not authorized' });
 
   try {
     const user = req.user as any;
-
-    // Define where clause dynamically
-    const whereClause =
-      user.role === 'ADMIN'
-        ? {} // Admin: see all projects
-        : { team: { some: { id: user.id } } }; // Regular user: only team projects
+    const whereClause = user.role === 'ADMIN' ? {} : { team: { some: { id: user.id } } };
 
     const projects = await prisma.project.findMany({
       where: whereClause,
       include: {
-        team: {
-          select: { id: true, name: true, avatarUrl: true, role: true },
-        },
+        team: { select: { id: true, name: true, avatarUrl: true, role: true } },
       },
       orderBy: { name: 'asc' },
     });
@@ -34,20 +24,25 @@ export const getProjects = async (req: any, res: Response) => {
   }
 };
 
-/**
- * Create a new project and connect the creator to its team
- */
+// Create a project (Admin can assign PMO; users auto-assign to self)
 export const createProject = async (req: any, res: Response) => {
   if (!req.user) return res.status(401).json({ message: 'Not authorized' });
 
   const user = req.user as any;
-  const { name, description } = req.body;
+  const { name, description, pmoId } = req.body;
 
   if (!name || name.trim() === '') {
     return res.status(400).json({ message: 'Project name is required' });
   }
 
   try {
+    const existing = await prisma.project.findFirst({
+      where: { name: name.trim() },
+    });
+    if (existing) {
+      return res.status(409).json({ message: 'Project with this name already exists' });
+    }
+
     const project = await prisma.project.create({
       data: {
         name: name.trim(),
@@ -55,71 +50,47 @@ export const createProject = async (req: any, res: Response) => {
         team: {
           connect: { id: user.id },
         },
+        ...(user.role === 'ADMIN' && pmoId ? { team: { connect: [{ id: user.id }, { id: Number(pmoId) }] } } : {}),
       },
       include: {
-        team: {
-          select: { id: true, name: true, avatarUrl: true, role: true },
-        },
+        team: { select: { id: true, name: true, avatarUrl: true, role: true } },
       },
     });
 
     res.status(201).json(project);
   } catch (err) {
-    console.error('--- CREATE PROJECT ERROR ---');
-    console.error(err);
-    console.error('--- END CREATE PROJECT ERROR ---');
+    console.error('CREATE PROJECT ERROR:', err);
     res.status(500).json({ message: 'Server error', error: err });
   }
 };
 
-/**
- * Delete a project (permission: team member OR admin)
- */
+// Delete project (Admin can delete any; User only if team member)
 export const deleteProject = async (req: any, res: Response) => {
   if (!req.user) return res.status(401).json({ message: 'Not authorized' });
 
   const user = req.user as any;
   const { id } = req.params;
-
-  if (!id || isNaN(Number(id))) {
-    return res.status(400).json({ message: 'Invalid Project ID provided.' });
-  }
-
   const projectId = Number(id);
 
+  if (!projectId) return res.status(400).json({ message: 'Invalid Project ID' });
+
   try {
-    // Find project
     const project = await prisma.project.findFirst({
       where: { id: projectId },
       include: { team: { select: { id: true } } },
     });
 
-    if (!project) {
-      return res.status(404).json({ message: 'Project not found.' });
-    }
+    if (!project) return res.status(404).json({ message: 'Project not found' });
 
-    // Permission check
-    const isMember = project.team.some((member: any) => member.id === user.id);
+    const isMember = project.team.some((m: any) => m.id === user.id);
     if (!isMember && user.role !== 'ADMIN') {
-      return res
-        .status(403)
-        .json({ message: 'You do not have permission to delete this project.' });
+      return res.status(403).json({ message: 'You do not have permission to delete this project.' });
     }
 
-    // Delete project
     await prisma.project.delete({ where: { id: projectId } });
-
-    console.log(
-      `Project "${project.name}" (ID: ${projectId}) deleted by User ID: ${user.id}`
-    );
     res.json({ message: `Project "${project.name}" deleted successfully.` });
   } catch (err) {
-    console.error('--- DELETE PROJECT ERROR ---');
-    console.error(`Error deleting project ID: ${projectId} by User ID: ${user.id}`);
-    console.error(err);
-    console.error('--- END DELETE PROJECT ERROR ---');
-    res
-      .status(500)
-      .json({ message: 'Server error during project deletion', error: err });
+    console.error('DELETE PROJECT ERROR:', err);
+    res.status(500).json({ message: 'Server error', error: err });
   }
 };

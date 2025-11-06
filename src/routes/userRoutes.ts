@@ -1,15 +1,14 @@
 import express from 'express';
-import { getAllUsers, updateUserRole, deleteUser } from '../controllers/userController';
-import { protect, isAdmin } from '../middleware/auth'; // ✅ single import now
+import { getAllUsers, getTeamForUser, updateUserRole, deleteUser } from '../controllers/userController';
+import { protect, isAdmin } from '../middleware/auth';
 
 const router = express.Router();
 
-// Protect and restrict to admins
 router.use(protect);
-router.use(isAdmin);
 
-router.get('/', getAllUsers);
-router.put('/:id/role', updateUserRole);
-router.delete('/:id', deleteUser);
+router.get('/', isAdmin, getAllUsers);
+router.get('/team', getTeamForUser);
+router.put('/:id/role', isAdmin, updateUserRole);
+router.delete('/:id', isAdmin, deleteUser);
 
 export default router;
