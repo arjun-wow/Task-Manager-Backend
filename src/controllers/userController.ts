@@ -71,3 +71,22 @@ export const deleteUser = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+export const updateUserProfile = async (req: any, res: Response) => {
+  if (!req.user) return res.status(401).json({ message: 'Not authorized' });
+
+  const { name, email } = req.body;
+  const userId = req.user.id;
+
+  try {
+    const updatedUser = await prisma.user.update({
+      where: { id: Number(userId) },
+      data: { name, email },
+      select: { id: true, name: true, email: true, role: true, avatarUrl: true },
+    });
+
+    return res.json(updatedUser);
+  } catch (err) {
+    console.error('UPDATE PROFILE ERROR:', err);
+    res.status(500).json({ message: 'Failed to update profile' });
+  }
+};
