@@ -6,6 +6,7 @@ import path from 'path';
 import session from 'express-session';
 import passport from 'passport';
 import notificationRoutes from "./routes/notificationRoutes";
+import adminRoutes from "./routes/adminRoutes";
 
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -90,6 +91,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/tasks', commentRoutes);
+app.use("/api", adminRoutes);
 
 // --- Server ---
 const PORT = process.env.PORT || 10000;
