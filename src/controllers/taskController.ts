@@ -1,121 +1,135 @@
-import { Request, Response } from 'express';
-import { prisma } from '../utils/prismaClient';
+import { Request, Response } from "express";
+import { PrismaClient } from "@prisma/client";
 
-const canAccessProject = async (userId: number, projectId: number, role: string) => {
-  if (role === 'ADMIN') return true;
-  const project = await prisma.project.findFirst({
-    where: { id: projectId, team: { some: { id: userId } } },
-  });
-  return !!project;
-};
+const prisma = new PrismaClient();
 
-export const getTasks = async (req: Request, res: Response) => {
-  const { projectId } = req.query;
-  if (!projectId) return res.status(400).json({ message: 'Project ID is required' });
-
-  if (!req.user) return res.status(401).json({ message: 'Not authorized' });
-
-  const user = req.user as any;
-  const hasAccess = await canAccessProject(user.id, Number(projectId), user.role);
-  if (!hasAccess) return res.status(403).json({ message: 'Access denied to this project' });
-
+/**
+ * GET all tasks for current user (or all if admin)
+ */
+export const getTasks = async (req: any, res: Response) => {
   try {
-    const tasks = await prisma.task.findMany({
-      where:
-        user.role === 'ADMIN'
-          ? { projectId: Number(projectId) }
-          : {
-              projectId: Number(projectId),
-              OR: [{ assigneeId: user.id }, { project: { team: { some: { id: user.id } } } }],
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+    const tasks =
+      user.role === "ADMIN"
+        ? await prisma.task.findMany({
+            include: { assignee: true, project: true },
+          })
+        : await prisma.task.findMany({
+            where: {
+              OR: [
+                { assigneeId: user.id },
+                { project: { team: { some: { id: user.id } } } },
+              ],
             },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        assignee: { select: { id: true, name: true, avatarUrl: true, role: true } },
-      },
-    });
+            include: { assignee: true, project: true },
+          });
 
     res.json(tasks);
-  } catch (err) {
-    console.error('GET TASKS ERROR:', err);
-    res.status(500).json({ message: 'Server error', error: err });
+  } catch (error) {
+    console.error("Error fetching tasks:", error);
+    res.status(500).json({ error: "Failed to fetch tasks" });
   }
 };
 
-export const createTask = async (req: Request, res: Response) => {
-  if (!req.user) return res.status(401).json({ message: 'Not authorized' });
-
-  const user = req.user as any;
-  const { title, description, priority, dueDate, projectId, assigneeId } = req.body;
-
-  if (!title || !projectId) return res.status(400).json({ message: 'Title and project required' });
-
-  const hasAccess = await canAccessProject(user.id, Number(projectId), user.role);
-  if (!hasAccess) return res.status(403).json({ message: 'You cannot add tasks here' });
-
+/**
+ * CREATE a new task
+ */
+export const createTask = async (req: any, res: Response) => {
   try {
+    const { title, description, projectId, priority, dueDate, assigneeId } = req.body;
+    const user = req.user;
+
+    if (!title || !projectId)
+      return res.status(400).json({ error: "Title and projectId are required" });
+
     const task = await prisma.task.create({
       data: {
         title,
         description,
+        projectId,
         priority,
         dueDate: dueDate ? new Date(dueDate) : null,
-        projectId: Number(projectId),
-        assigneeId: assigneeId ? Number(assigneeId) : user.id,
+        assigneeId: assigneeId || null,
+        creatorId: user?.id || null, // ✅ optional, safe for now
       },
-      include: { assignee: { select: { id: true, name: true, avatarUrl: true, role: true } } },
+      include: {
+        assignee: true,
+        project: true,
+      },
     });
+
+    // ✅ Notification if assigned to someone
+    if (assigneeId) {
+      await prisma.notification.create({
+        data: {
+          userId: assigneeId,
+          message: `You have been assigned a new task: "${title}"`,
+          type: "TASK_ASSIGNMENT",
+        },
+      });
+    }
 
     res.status(201).json(task);
-  } catch (err) {
-    console.error('CREATE TASK ERROR:', err);
-    res.status(500).json({ message: 'Server error', error: err });
+  } catch (error) {
+    console.error("Error creating task:", error);
+    res.status(500).json({ error: "Failed to create task" });
   }
 };
 
-export const updateTask = async (req: Request, res: Response) => {
-  if (!req.user) return res.status(401).json({ message: 'Not authorized' });
-
-  const user = req.user as any;
-  const { id } = req.params;
-  const payload = req.body;
-
+/**
+ * UPDATE task details
+ */
+export const updateTask = async (req: any, res: Response) => {
   try {
-    const task = await prisma.task.findUnique({ where: { id: Number(id) } });
-    if (!task) return res.status(404).json({ message: 'Task not found' });
+    const { id } = req.params;
+    const { title, description, status, priority, dueDate, assigneeId } = req.body;
 
-    const hasAccess = await canAccessProject(user.id, task.projectId, user.role);
-    if (!hasAccess) return res.status(403).json({ message: 'You cannot modify this task' });
-
-    const updated = await prisma.task.update({
+    const task = await prisma.task.update({
       where: { id: Number(id) },
-      data: payload,
-      include: { assignee: { select: { id: true, name: true, avatarUrl: true, role: true } } },
+      data: {
+        title,
+        description,
+        status,
+        priority,
+        dueDate: dueDate ? new Date(dueDate) : null,
+        assigneeId: assigneeId || null,
+      },
+      include: {
+        assignee: true,
+        project: true,
+      },
     });
 
-    res.json(updated);
-  } catch (err) {
-    console.error('UPDATE TASK ERROR:', err);
-    res.status(500).json({ message: 'Server error', error: err });
+    // ✅ Notification for reassignment
+    if (assigneeId) {
+      await prisma.notification.create({
+        data: {
+          userId: assigneeId,
+          message: `You’ve been assigned an updated task: "${title}"`,
+          type: "TASK_UPDATE",
+        },
+      });
+    }
+
+    res.json(task);
+  } catch (error) {
+    console.error("Error updating task:", error);
+    res.status(500).json({ error: "Failed to update task" });
   }
 };
 
-export const deleteTask = async (req: Request, res: Response) => {
-  if (!req.user) return res.status(401).json({ message: 'Not authorized' });
-
-  const user = req.user as any;
-  const { id } = req.params;
-
+/**
+ * DELETE a task
+ */
+export const deleteTask = async (req: any, res: Response) => {
   try {
-    const task = await prisma.task.findUnique({ where: { id: Number(id) } });
-    if (!task) return res.status(404).json({ message: 'Task not found' });
-
-    const hasAccess = await canAccessProject(user.id, task.projectId, user.role);
-    if (!hasAccess) return res.status(403).json({ message: 'You cannot delete this task' });
-
+    const { id } = req.params;
     await prisma.task.delete({ where: { id: Number(id) } });
-    res.json({ message: 'Task deleted' });
-  } catch (err) {
-    console.error('DELETE TASK ERROR:', err);
-    res.status(500).json({ message: 'Server error', error: err });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting task:", error);
+    res.status(500).json({ error: "Failed to delete task" });
   }
 };

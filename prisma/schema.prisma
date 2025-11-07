@@ -7,47 +7,38 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- 1. ADDED ROLE ENUM ---
 enum Role {
   USER
   ADMIN
 }
 
 model User {
-  id        Int       @id @default(autoincrement())
-  email     String    @unique
-  name      String?
-  password  String? // Optional for OAuth
+  id       Int     @id @default(autoincrement())
+  email    String  @unique
+  name     String?
+  password String?
 
-  // --- 2. ADDED ROLE FIELD ---
-  role      Role      @default(USER)
+  role Role @default(USER)
 
-  // --- OAuth Fields ---
-  provider   String? // e.g., "google", or null for local
-  providerId String? // Unique ID from the provider
-
-  // --- 3. FIXED AVATAR URL SYNTAX ---
-  avatarUrl String?   @default("https://api.dicebear.com/8.x/bottts-neutral/svg?seed=default")
-
-  // --- Password Reset Fields ---
+  provider             String?
+  providerId           String?
+  avatarUrl            String?   @default("https://api.dicebear.com/8.x/bottts-neutral/svg?seed=default")
   passwordResetToken   String?   @unique
   passwordResetExpires DateTime?
 
   // --- Relations ---
-  projects Project[] @relation("ProjectTeam")
-  tasks    Task[]    @relation("Assignee")
-  comments Comment[]
-
-  // Optional index for OAuth lookup
-  // @@index([provider, providerId])
+  projects      Project[]      @relation("ProjectTeam")
+  tasks         Task[]         @relation("Assignee")
+  createdTasks  Task[]         @relation("CreatedTasks") // ✅ added for creator link
+  comments      Comment[]
+  notifications Notification[]
 }
 
 model Project {
   id          Int     @id @default(autoincrement())
   name        String
   description String?
-  // Relation to Tasks: If a Project is deleted, cascade delete its Tasks
-  tasks       Task[] // Cascade delete is defined on the Task side of the relation
+  tasks       Task[]
   team        User[]  @relation("ProjectTeam")
 }
 
@@ -64,36 +55,36 @@ enum TaskPriority {
 }
 
 model Task {
-  id           Int          @id @default(autoincrement())
-  title        String
-  description  String?
-  status       TaskStatus   @default(TO_DO)
-  priority     TaskPriority @default(MEDIUM)
-  dueDate      DateTime?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id          Int          @id @default(autoincrement())
+  title       String
+  description String?
+  status      TaskStatus   @default(TO_DO)
+  priority    TaskPriority @default(MEDIUM)
+  dueDate     DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  // --- ADDED onDelete: Cascade ---
-  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  projectId    Int
+  // --- Relations ---
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId Int
 
-  // --- ADDED onDelete: SetNull (Optional, keeps task if user deleted) ---
-  assignee     User?        @relation("Assignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  assigneeId   Int?
+  assignee   User? @relation("Assignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assigneeId Int?
 
-  // Relation to SubTasks: Cascade defined on SubTask side
-  subTasks     SubTask[]
-  // Relation to Comments: Cascade defined on Comment side
-  comments     Comment[]
+  // ✅ Added proper creator relation (optional for safe migration)
+  creator   User? @relation("CreatedTasks", fields: [creatorId], references: [id], onDelete: Cascade)
+  creatorId Int?
+
+  subTasks SubTask[]
+  comments Comment[]
 }
 
 model SubTask {
-  id        Int     @id @default(autoincrement())
-  title     String
-  isDone    Boolean @default(false)
-  // --- ADDED onDelete: Cascade ---
-  task      Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  taskId    Int
+  id     Int     @id @default(autoincrement())
+  title  String
+  isDone Boolean @default(false)
+  task   Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId Int
 }
 
 model Comment {
@@ -101,11 +92,20 @@ model Comment {
   content   String
   createdAt DateTime @default(now())
 
-  // --- ADDED onDelete: Cascade (Optional, deletes comment if author deleted) ---
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  authorId  Int
+  author   User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId Int
 
-  // --- ADDED onDelete: Cascade ---
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  taskId    Int
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId Int
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  message   String
+  type      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }

@@ -5,6 +5,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 import session from 'express-session';
 import passport from 'passport';
+import notificationRoutes from "./routes/notificationRoutes";
+
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -81,6 +83,7 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 // --- Routes ---
 app.use("/api/reports", reportRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
